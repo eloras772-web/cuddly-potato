@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍩 Krispy Kreme Stack Móvil (FINAL con Cuadrícula)</title>
+    <style>
+        /* --- ESTILOS GENERALES Y LAYOUT MÓVIL --- */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-image: url('fondo.jpeg'); 
+            background-size: cover; 
+            background-position: center; 
+            background-repeat: no-repeat; 
+            background-attachment: fixed; 
+            background-color: #f0f0f0; 
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            padding: 10px;
+            margin: 0;
+            height: 100vh; 
+            box-sizing: border-box;
+        }
+
+        /* --- ESTILOS DEL TABLERO DE JUEGO (Tamaño Reducido) --- */
+        .contenedor-juego {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            order: 1; 
+        }
+
+        #tablero {
+            border: 5px solid #D72828; 
+            background-color: #FFFFFF; 
+            display: grid;
+            grid-template-columns: repeat(10, 20px); 
+            grid-template-rows: repeat(20, 20px);
+            width: 200px;
+            height: 400px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+        }
+
+        .celda {
+            width: 20px; 
+            height: 20px; 
+            box-sizing: border-box;
+            /* 🟢 CAMBIO AQUÍ: Cuadrícula regresada 🟢 */
+            border: 1px solid #eee; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px; 
+        }
+        
+        /* --- ESTILOS DE LA INFORMACIÓN (Pequeño y arriba) --- */
+        .info-panel {
+            background-color: #D72828; 
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            width: 200px;
+            margin-bottom: 10px;
+            order: 0; 
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .info-panel h2 {
+            font-size: 1.2em;
+            width: 100%;
+            margin: 0 0 5px 0;
+            border-bottom: 1px solid white;
+            padding-bottom: 5px;
+        }
+        .info-panel p {
+            font-size: 0.9em;
+            margin: 0 5px;
+            text-align: center;
+        }
+        #high-score { font-weight: bold; }
+        
+        /* --- ESTILOS DE LOS CONTROLES MÓVILES --- */
+        #controles-movil {
+            order: 2; 
+            width: 100%;
+            max-width: 300px; 
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr; 
+            gap: 5px;
+            margin-top: 15px;
+            padding: 10px;
+        }
+
+        .control-btn {
+            padding: 15px 5px;
+            font-size: 1.2em;
+            font-weight: bold;
+            background-color: #FFFFFF;
+            color: #D72828;
+            border: 2px solid #D72828;
+            border-radius: 5px;
+            user-select: none; 
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .control-btn:active {
+            background-color: #E6E6E6;
+        }
+        
+        .control-btn.caida {
+            grid-column: span 2; 
+            background-color: #D72828;
+            color: white;
+        }
+        
+        #btn-pausa {
+            background-color: #ff9800; 
+            color: white;
+            grid-column: span 2;
+        }
+
+        #proximo-bloque { display: none !important; }
+
+        /* --- ESTILOS DEL MENÚ --- */
+        #menu-inicio {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #menu-inicio h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        #menu-inicio p {
+            font-size: 1em;
+            margin-bottom: 5px;
+        }
+        
+        #menu-inicio button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+        
+        #mensaje-pausa {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.5em;
+            display: none; 
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+    
+    <audio id="musica-fondo" loop>
+        <source src="musica.mp3" type="audio/mp3">
+    </audio>
+
+    <div id="menu-inicio">
+        <h1>🍩 KRISPY KREME STACK 🍩</h1>
+        <p>¡Apila las donas!</p>
+        <p style="font-size: 0.8em; opacity: 0.7;">(El sonido y la música iniciarán con el botón)</p>
+        <button onclick="iniciarJuego()">¡Jugar Ahora!</button>
+    </div>
+
+    <div class="info-panel">
+        <p>Puntos: <span id="puntos">0</span></p>
+        <p>Líneas: <span id="lineas">0</span></p>
+        <p>🏆 High Score: <span id="high-score">0</span></p>
+        <div id="proximo-bloque"></div> 
+    </div>
+
+    <div class="contenedor-juego">
+        <div id="tablero">
+            </div>
+        <div id="mensaje-pausa">PAUSA</div>
+    </div>
+    
+    <div id="controles-movil">
+        <button class="control-btn" onclick="mover(-1, 0)">⬅️ Izq</button>
+        <button class="control-btn" onclick="rotar()">🔄 Rotar</button>
+        <button class="control-btn" onclick="mover(1, 0)">Der ➡️</button>
+        <button class="control-btn" onclick="mover(0, 1)">⬇️ Suave</button>
+        <button class="control-btn caida" onclick="caidaRapida()">💥 Caída Rápida</button>
+        <button id="btn-pausa" class="control-btn" onclick="togglePausa()">⏸️ Pausa</button>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURACIÓN Y DATOS DEL JUEGO ---
+        const FILAS = 20;
+        const COLUMNAS = 10;
+        const TIEMPO_CAIDA = 1000; 
+        const DONA_EMOJI = '🍩';
+        const tableroDiv = document.getElementById('tablero');
+        let juegoMatriz = []; 
+        let intervaloCaida;
+        let puntos = 0;
+        let lineas = 0;
+        let high_score = 0;
+        let isPlaying = false; 
+        let isPaused = false; 
+        const btnPausa = document.getElementById('btn-pausa');
+        const mensajePausa = document.getElementById('mensaje-pausa');
+        
+        // --- REFERENCIA AL AUDIO ---
+        const musicaFondo = document.getElementById('musica-fondo');
+        musicaFondo.volume = 0.2; 
+
+        // Variables para FX (AudioContext)
+        let contextoAudio = null;
+        
+        // Las 7 formas de Tetris (J, L, I, O, S, Z, T)
+        const Formas = [
+            [[0, 1, 0], [0, 1, 0], [1, 1, 0]], 
+            [[0, 1, 0], [0, 1, 0], [0, 1, 1]], 
+            [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], 
+            [[1, 1], [1, 1]], 
+            [[0, 1, 1], [1, 1, 0], [0, 0, 0]], 
+            [[1, 1, 0], [0, 1, 1], [0, 0, 0]], 
+            [[0, 1, 0], [1, 1, 1], [0, 0, 0]] 
+        ];
+
+        let bloqueActual = null;
+        let proximoBloque = null;
+
+
+        // --- FUNCIONES DE MÚSICA DE FONDO (MP3) ---
+
+        function iniciarMusicaDeFondo() {
+            musicaFondo.play().catch(error => {
+                console.warn("Fallo al reproducir música:", error);
+            });
+        }
+
+        function detenerMusicaDeFondo() {
+            musicaFondo.pause();
+        }
+
+
+        // --- FUNCIONES DE SONIDO (FX) ---
+
+        function generarTono(frecuencia, duracion, volumen) {
+            try {
+                if (!contextoAudio) {
+                    contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                if (isPaused && contextoAudio.state === 'running') {
+                    contextoAudio.suspend();
+                } else if (!isPaused && contextoAudio.state === 'suspended') {
+                    contextoAudio.resume();
+                }
+                
+                if (contextoAudio.state !== 'running') return;
+
+
+                const oscilador = contextoAudio.createOscillator();
+                const ganancia = contextoAudio.createGain();
+
+                oscilador.connect(ganancia);
+                ganancia.connect(contextoAudio.destination);
+
+                oscilador.type = 'square'; 
+                oscilador.frequency.setValueAtTime(frecuencia, contextoAudio.currentTime);
+                ganancia.gain.setValueAtTime(volumen, contextoAudio.currentTime);
+
+                ganancia.gain.exponentialRampToValueAtTime(
+                    0.00001, 
+                    contextoAudio.currentTime + duracion
+                );
+                
+                oscilador.start();
+                oscilador.stop(contextoAudio.currentTime + duracion);
+
+            } catch (error) {
+                console.warn("El API de Audio para FX no está disponible:", error);
+            }
+        }
+        
+        function reproducirSonidoCaida() {
+            generarTono(150, 0.2, 0.6); 
+        }
+
+        function reproducirSonidoLinea() {
+            generarTono(440, 0.4, 0.8); 
+        }
+        
+        // --- 2. FUNCIONES DE INTERFAZ Y PUNTUACIÓN ---
+
+        function actualizarHUD() {
+            document.getElementById('puntos').textContent = puntos;
+            document.getElementById('lineas').textContent = lineas;
+            high_score = Math.max(high_score, puntos);
+            localStorage.setItem('krispyKremeTetrisHigh', high_score);
+            document.getElementById('high-score').textContent = high_score;
+        }
+
+        function cargarHighscore() {
+            const storedScore = localStorage.getItem('krispyKremeTetrisHigh');
+            high_score = storedScore ? parseInt(storedScore) : 0;
+            document.getElementById('high-score').textContent = high_score;
+        }
+        
+        function generarTableroHTML() {
+            tableroDiv.innerHTML = ''; 
+            juegoMatriz = Array(FILAS).fill(0).map(() => Array(COLUMNAS).fill(0));
+            
+            for (let r = 0; r < FILAS; r++) {
+                for (let c = 0; c < COLUMNAS; c++) {
+                    const celda = document.createElement('div');
+                    celda.classList.add('celda');
+                    celda.dataset.fila = r;
+                    celda.dataset.columna = c;
+                    tableroDiv.appendChild(celda);
+                }
+            }
+        }
+
+        function dibujarBloque(bloque, matriz) {
+            bloque.forma.forEach((fila, r) => {
+                fila.forEach((valor, c) => {
+                    if (valor === 1) {
+                        const filaAbsoluta = bloque.y + r;
+                        const columnaAbsoluta = bloque.x + c;
+                        if (filaAbsoluta >= 0 && filaAbsoluta < FILAS && columnaAbsoluta >= 0 && columnaAbsoluta < COLUMNAS) {
+                            matriz[filaAbsoluta][columnaAbsoluta] = 1;
+                        }
+                    }
+                });
+            });
+        }
+
+        function dibujarJuego() {
+            const matrizDibujo = juegoMatriz.map(fila => [...fila]); 
+            if (bloqueActual) {
+                dibujarBloque(bloqueActual, matrizDibujo);
+            }
+            const celdasHTML = document.querySelectorAll('.celda');
+            celdasHTML.forEach((celda, index) => {
+                const r = Math.floor(index / COLUMNAS);
+                const c = index % COLUMNAS;
+                if (matrizDibujo[r][c] === 1) {
+                    celda.innerHTML = DONA_EMOJI;
+                } else {
+                    celda.innerHTML = '';
+                }
+            });
+        }
+        
+        function rotarBloque(matriz) {
+            const N = matriz.length;
+            const nuevaMatriz = Array(N).fill(0).map(() => Array(N).fill(0));
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < N; j++) {
+                    nuevaMatriz[j][N - 1 - i] = matriz[i][j];
+                }
+            }
+            return nuevaMatriz;
+        }
+
+        function verificarColision(bloque, nuevaForma) {
+            const forma = nuevaForma || bloque.forma;
+            for (let r = 0; r < forma.length; r++) {
+                for (let c = 0; c < forma[r].length; c++) {
+                    if (forma[r][c] === 1) {
+                        const nuevaFila = bloque.y + r;
+                        const nuevaColumna = bloque.x + c;
+
+                        if (nuevaColumna < 0 || nuevaColumna >= COLUMNAS) { return true; }
+                        if (nuevaFila >= FILAS) { return true; }
+                        if (nuevaFila >= 0 && juegoMatriz[nuevaFila][nuevaColumna] === 1) { return true; }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function generarNuevoBloque() {
+            const indice = Math.floor(Math.random() * Formas.length);
+            const forma = Formas[indice];
+            
+            return {
+                forma: forma,
+                x: Math.floor(COLUMNAS / 2) - Math.floor(forma[0].length / 2),
+                y: -forma.length 
+            };
+        }
+
+        function asegurarBloque() {
+            bloqueActual.forma.forEach((fila, r) => {
+                fila.forEach((valor, c) => {
+                    if (valor === 1) {
+                        const filaAbsoluta = bloqueActual.y + r;
+                        const columnaAbsoluta = bloqueActual.x + c;
+                        if (filaAbsoluta >= 0) {
+                            juegoMatriz[filaAbsoluta][columnaAbsoluta] = 1;
+                        }
+                    }
+                });
+            });
+        }
+
+        function limpiarLineas() {
+            let lineasCompletadas = 0;
+            for (let r = FILAS - 1; r >= 0; r--) {
+                if (juegoMatriz[r].every(celda => celda === 1)) {
+                    for (let k = r; k > 0; k--) {
+                        juegoMatriz[k] = [...juegoMatriz[k - 1]];
+                    }
+                    juegoMatriz[0] = Array(COLUMNAS).fill(0); 
+                    lineasCompletadas++;
+                    r++; 
+                }
+            }
+            
+            if (lineasCompletadas > 0) {
+                puntos += lineasCompletadas * lineasCompletadas * 100; 
+                lineas += lineasCompletadas;
+                actualizarHUD();
+                reproducirSonidoLinea(); 
+            }
+        }
+
+        function mover(dx, dy) {
+            if (!bloqueActual || !isPlaying || isPaused) return;
+            
+            const nuevoBloque = { ...bloqueActual, x: bloqueActual.x + dx, y: bloqueActual.y + dy };
+            
+            if (!verificarColision(nuevoBloque)) {
+                bloqueActual = nuevoBloque;
+            } else if (dy > 0) {
+                asegurarBloque();
+                reproducirSonidoCaida(); 
+                limpiarLineas();
+                
+                if (bloqueActual.y < 0) {
+                    gameOver();
+                    return;
+                }
+                
+                bloqueActual = proximoBloque;
+                proximoBloque = generarNuevoBloque();
+            }
+            dibujarJuego();
+        }
+
+        function rotar() {
+            if (!bloqueActual || !isPlaying || isPaused) return;
+            
+            const nuevaForma = rotarBloque(bloqueActual.forma);
+            const bloqueConRotacion = { ...bloqueActual, forma: nuevaForma };
+
+            if (!verificarColision(bloqueConRotacion)) {
+                bloqueActual.forma = nuevaForma;
+            }
+            dibujarJuego();
+        }
+
+        function caidaRapida() {
+            if (!bloqueActual || !isPlaying || isPaused) return;
+
+            let pasos = 0;
+            while (!verificarColision({ ...bloqueActual, y: bloqueActual.y + pasos + 1 })) {
+                pasos++;
+            }
+            bloqueActual.y += pasos;
+            mover(0, 1); 
+        }
+
+        function juegoLoop() {
+            if (!isPaused) {
+                mover(0, 1); 
+            }
+        }
+        
+        // --- 3. FUNCIONES DE INICIO/FIN/PAUSA ---
+
+        function iniciarJuego() {
+            iniciarMusicaDeFondo();
+            
+            if (contextoAudio && contextoAudio.state === 'suspended') {
+                contextoAudio.resume();
+            } else if (!contextoAudio) {
+                 contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            document.getElementById('menu-inicio').style.display = 'none';
+            generarTableroHTML();
+            cargarHighscore();
+            
+            puntos = 0;
+            lineas = 0;
+            actualizarHUD();
+            
+            bloqueActual = generarNuevoBloque();
+            proximoBloque = generarNuevoBloque(); 
+            
+            isPlaying = true;
+            isPaused = false;
+            btnPausa.textContent = '⏸️ Pausa';
+            mensajePausa.style.display = 'none';
+            
+            intervaloCaida = setInterval(juegoLoop, TIEMPO_CAIDA);
+        }
+
+        function gameOver() {
+            clearInterval(intervaloCaida);
+            isPlaying = false;
+            
+            detenerMusicaDeFondo();
+            if (contextoAudio && contextoAudio.state === 'running') {
+                contextoAudio.suspend();
+            }
+            
+            alert(`¡Fin del Juego!\nPuntos: ${puntos}\nLíneas: ${lineas}\n🏆 High Score: ${high_score}`);
+            document.getElementById('menu-inicio').style.display = 'flex';
+        }
+
+        function togglePausa() {
+            if (!isPlaying) return;
+
+            isPaused = !isPaused; 
+            
+            if (isPaused) {
+                clearInterval(intervaloCaida);
+                detenerMusicaDeFondo(); 
+                if (contextoAudio && contextoAudio.state === 'running') {
+                    contextoAudio.suspend();
+                }
+                btnPausa.textContent = '▶️ Reanudar';
+                mensajePausa.style.display = 'block';
+            } else {
+                intervaloCaida = setInterval(juegoLoop, TIEMPO_CAIDA);
+                iniciarMusicaDeFondo(); 
+                if (contextoAudio && contextoAudio.state === 'suspended') {
+                    contextoAudio.resume();
+                }
+                btnPausa.textContent = '⏸️ Pausa';
+                mensajePausa.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
