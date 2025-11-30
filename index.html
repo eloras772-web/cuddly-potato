@@ -3,24 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍩 Krispy Kreme Stack Móvil (FINAL con Cuadrícula)</title>
+    <title>🍩 Krispy Kreme Stack (Con Leaderboard)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Importaciones de Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        
+        // Exportar a scope global para que el script principal pueda usarlos
+        window.firebase = { 
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
+            getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, 
+            collection, query, where, orderBy, limit, getDocs, setLogLevel
+        };
+    </script>
     <style>
         /* --- ESTILOS GENERALES Y LAYOUT MÓVIL --- */
         body {
-            font-family: 'Arial', sans-serif;
-            background-image: url('fondo.jpeg'); 
-            background-size: cover; 
-            background-position: center; 
-            background-repeat: no-repeat; 
-            background-attachment: fixed; 
-            background-color: #f0f0f0; 
+            font-family: 'Inter', sans-serif;
+            background-color: #f8e6f1; /* Color suave de dona */
             display: flex;
             flex-direction: column; 
             align-items: center;
             padding: 10px;
             margin: 0;
-            height: 100vh; 
+            min-height: 100vh; 
             box-sizing: border-box;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL: Ahora envuelve Info y Tablero --- */
+        #contenedor-principal {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
         }
 
         /* --- ESTILOS DEL TABLERO DE JUEGO (Tamaño Reducido) --- */
@@ -29,104 +48,103 @@
             flex-direction: column;
             align-items: center;
             order: 1; 
+            position: relative; /* Contenedor general */
+        }
+        
+        /* NUEVO CONTENEDOR DE REFERENCIA PARA LA PAUSA */
+        #tablero-wrapper {
+            position: relative; /* Base para posicionamiento absoluto de la pausa */
+            margin-bottom: 20px; /* Mantiene el espacio debajo del tablero */
         }
 
         #tablero {
-            border: 5px solid #D72828; 
+            border: 8px solid #D72828; 
             background-color: #FFFFFF; 
             display: grid;
-            grid-template-columns: repeat(10, 20px); 
-            grid-template-rows: repeat(20, 20px);
-            width: 200px;
-            height: 400px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            margin-bottom: 10px;
+            grid-template-columns: repeat(10, min(5vw, 20px));
+            grid-template-rows: repeat(20, min(10vw, 20px));
+            width: min(50vw, 200px); 
+            height: min(100vw, 400px); 
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 0; /* Movido al wrapper */
         }
 
         .celda {
-            width: 20px; 
-            height: 20px; 
+            width: 100%; 
+            height: 100%; 
             box-sizing: border-box;
-            /* 🟢 CAMBIO AQUÍ: Cuadrícula regresada 🟢 */
             border: 1px solid #eee; 
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 15px; 
+            font-size: min(4vw, 15px); 
         }
         
-        /* --- ESTILOS DE LA INFORMACIÓN (Pequeño y arriba) --- */
+        /* --- ESTILOS DE LA INFORMACIÓN --- */
         .info-panel {
             background-color: #D72828; 
             color: white;
-            padding: 10px;
-            border-radius: 8px;
-            width: 200px;
-            margin-bottom: 10px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            width: min(90vw, 300px);
+            margin-bottom: 20px;
             order: 0; 
             display: flex;
-            justify-content: space-between;
+            justify-content: space-around;
             flex-wrap: wrap;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .info-panel h2 {
-            font-size: 1.2em;
-            width: 100%;
-            margin: 0 0 5px 0;
-            border-bottom: 1px solid white;
-            padding-bottom: 5px;
-        }
         .info-panel p {
-            font-size: 0.9em;
+            font-size: 1em;
             margin: 0 5px;
-            text-align: center;
+            font-weight: 500;
         }
-        #high-score { font-weight: bold; }
         
         /* --- ESTILOS DE LOS CONTROLES MÓVILES --- */
         #controles-movil {
             order: 2; 
-            width: 100%;
-            max-width: 300px; 
+            width: min(90vw, 350px);
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr; 
-            gap: 5px;
-            margin-top: 15px;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 10px;
+            margin-top: 10px;
             padding: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
         }
 
         .control-btn {
             padding: 15px 5px;
-            font-size: 1.2em;
+            font-size: 1.1em;
             font-weight: bold;
             background-color: #FFFFFF;
             color: #D72828;
-            border: 2px solid #D72828;
-            border-radius: 5px;
+            border: 3px solid #D72828;
+            border-radius: 8px;
             user-select: none; 
             cursor: pointer;
             text-align: center;
-        }
-        
-        .control-btn:active {
-            background-color: #E6E6E6;
+            transition: all 0.1s ease;
+            box-shadow: 0 3px 0 #9E1F1F;
         }
         
         .control-btn.caida {
             grid-column: span 2; 
             background-color: #D72828;
             color: white;
+            box-shadow: 0 3px 0 #9E1F1F;
         }
         
         #btn-pausa {
             background-color: #ff9800; 
             color: white;
             grid-column: span 2;
+            box-shadow: 0 3px 0 #C47A00;
         }
 
-        #proximo-bloque { display: none !important; }
-
-        /* --- ESTILOS DEL MENÚ --- */
+        /* --- ESTILOS DEL MENÚ DE INICIO/MODAL --- */
         #menu-inicio {
             position: fixed; 
             top: 0;
@@ -144,63 +162,147 @@
             padding: 20px;
         }
 
-        #menu-inicio h1 {
-            font-size: 2em;
-            margin-bottom: 10px;
+        /* --- LEADERBOARD STYLE --- */
+        #leaderboard-container {
+            background-color: white;
+            color: #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            width: min(80vw, 300px);
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
-        #menu-inicio p {
-            font-size: 1em;
-            margin-bottom: 5px;
+        #leaderboard-container h2 {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #D72828;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #FFD700;
+            padding-bottom: 5px;
         }
-        
-        #menu-inicio button {
-            padding: 15px 30px;
-            font-size: 1.2em;
-            margin-top: 20px;
+
+        #leaderboard-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
         }
-        
-        #mensaje-pausa {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.8);
+
+        #leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed #eee;
+            font-size: 0.95em;
+        }
+
+        .rank-name { font-weight: bold; color: #2c3e50; }
+        .score-value { color: #D72828; font-weight: 600; }
+
+        /* MODAL PARA INGRESAR PUNTAJE */
+        #input-score-modal {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.95);
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 1.5em;
             display: none; 
-            z-index: 999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001; 
+            text-align: center;
+            padding: 30px;
+            font-size: 1.1em;
+        }
+        
+        /* MENSAJE DE PAUSA: AHORA CUBRE SOLO EL TABLERO */
+        #mensaje-pausa {
+            position: absolute; /* Posicionamiento relativo al #tablero-wrapper */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            color: white;
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 50; /* Alto para cubrir el tablero */
+            letter-spacing: 5px;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
     
+    <!-- AUDIO -->
     <audio id="musica-fondo" loop>
         <source src="musica.mp3" type="audio/mp3">
     </audio>
 
+    <!-- PANTALLA DE INICIO (MENÚ) -->
     <div id="menu-inicio">
+        <!-- Donas flotantes de fondo -->
+        <div class="dona-flotante d1">🍩</div>
+        <div class="dona-flotante d2">🍩</div>
+        <div class="dona-flotante d3">🍩</div>
+        
         <h1>🍩 KRISPY KREME STACK 🍩</h1>
-        <p>¡Apila las donas!</p>
-        <p style="font-size: 0.8em; opacity: 0.7;">(El sonido y la música iniciarán con el botón)</p>
+        <p>¡Apila las donas y haz una torre perfecta!</p>
+        
+        <!-- Contenedor del Leaderboard -->
+        <div id="leaderboard-container">
+            <h2>🏆 Tabla de Clasificación 🏆</h2>
+            <ul id="leaderboard-list">
+                <li>Cargando Leaderboard...</li>
+            </ul>
+        </div>
+        
+        <p style="font-size: 0.9em; opacity: 0.8; margin-top: 15px;">Tu ID de Jugador (para premios): <span id="user-id-display">Cargando...</span></p>
+
         <button onclick="iniciarJuego()">¡Jugar Ahora!</button>
     </div>
 
-    <div class="info-panel">
-        <p>Puntos: <span id="puntos">0</span></p>
-        <p>Líneas: <span id="lineas">0</span></p>
-        <p>🏆 High Score: <span id="high-score">0</span></p>
-        <div id="proximo-bloque"></div> 
-    </div>
+    <!-- CONTENEDOR PRINCIPAL DEL JUEGO (Lo que verá el jugador) -->
+    <div id="contenedor-principal">
+        <!-- PANEL DE INFORMACIÓN DURANTE EL JUEGO -->
+        <div class="info-panel">
+            <p>Nivel: <span id="nivel">0</span></p> 
+            <p>Puntos: <span id="puntos">0</span></p>
+            <p>Líneas: <span id="lineas">0</span></p>
+        </div>
 
-    <div class="contenedor-juego">
-        <div id="tablero">
+        <!-- CONTENEDOR DEL JUEGO -->
+        <div class="contenedor-juego">
+            <!-- NUEVO WRAPPER QUE CONTIENE TABLERO Y PAUSA -->
+            <div id="tablero-wrapper">
+                <div id="tablero">
+                    <!-- Celdas del tablero generadas por JS -->
+                </div>
+                <!-- MENSAJE DE PAUSA POSICIONADO ABSOLUTAMENTE AQUÍ -->
+                <div id="mensaje-pausa">PAUSA</div>
             </div>
-        <div id="mensaje-pausa">PAUSA</div>
+        </div>
     </div>
     
+    <!-- MODAL PARA INGRESAR PUNTAJE (Sigue cubriendo todo el viewport) -->
+    <div id="input-score-modal">
+        <p>¡Nuevo Puntaje Alto!</p>
+        <p>Tu puntaje: <span id="final-score">0</span></p>
+        <p style="font-weight: normal;">Ingresa tu nombre para el Leaderboard:</p>
+        <input type="text" id="player-name-input" placeholder="Ej: John Doe" maxlength="15">
+        <button onclick="enviarPuntaje()">Guardar Puntaje</button>
+    </div>
+    
+    <!-- CONTROLES MÓVILES -->
     <div id="controles-movil">
         <button class="control-btn" onclick="mover(-1, 0)">⬅️ Izq</button>
         <button class="control-btn" onclick="rotar()">🔄 Rotar</button>
@@ -214,27 +316,36 @@
         // --- 1. CONFIGURACIÓN Y DATOS DEL JUEGO ---
         const FILAS = 20;
         const COLUMNAS = 10;
-        const TIEMPO_CAIDA = 1000; 
         const DONA_EMOJI = '🍩';
         const tableroDiv = document.getElementById('tablero');
+        
+        // --- VELOCIDADES Y NIVELES DE DIFICULTAD DINÁMICA ---
+        const VELOCIDADES_NIVEL = [
+            1000, 850, 700, 550, 400, 250, 200, 150, 100
+        ];
+        
+        let TIEMPO_CAIDA = VELOCIDADES_NIVEL[0];
+        let nivelActual = 0;
         let juegoMatriz = []; 
         let intervaloCaida;
         let puntos = 0;
         let lineas = 0;
-        let high_score = 0;
         let isPlaying = false; 
         let isPaused = false; 
         const btnPausa = document.getElementById('btn-pausa');
         const mensajePausa = document.getElementById('mensaje-pausa');
         
-        // --- REFERENCIA AL AUDIO ---
+        // --- CONFIGURACIÓN FIREBASE ---
+        let app, db, auth;
+        let userId = 'anon_user';
+        let isAuthReady = false;
+        
+        const LEADERBOARD_PATH = `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/leaderboard`;
+
         const musicaFondo = document.getElementById('musica-fondo');
         musicaFondo.volume = 0.2; 
-
-        // Variables para FX (AudioContext)
         let contextoAudio = null;
         
-        // Las 7 formas de Tetris (J, L, I, O, S, Z, T)
         const Formas = [
             [[0, 1, 0], [0, 1, 0], [1, 1, 0]], 
             [[0, 1, 0], [0, 1, 0], [0, 1, 1]], 
@@ -242,328 +353,182 @@
             [[1, 1], [1, 1]], 
             [[0, 1, 1], [1, 1, 0], [0, 0, 0]], 
             [[1, 1, 0], [0, 1, 1], [0, 0, 0]], 
-            [[0, 1, 0], [1, 1, 1], [0, 0, 0]] 
+            [[0, 1, 0], [1, 1, 1], [0, 0, 0]]
         ];
 
         let bloqueActual = null;
         let proximoBloque = null;
 
+        // --- FUNCIONES FIREBASE Y LEADERBOARD ---
+        
+        async function setupFirebase() {
+            if (typeof window.firebase === 'undefined') {
+                console.error("Firebase SDK no cargado. Leaderboard deshabilitado.");
+                isAuthReady = true;
+                document.getElementById('user-id-display').textContent = 'Offline';
+                return;
+            }
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase Config missing. Running in offline mode.");
+                    isAuthReady = true;
+                    document.getElementById('user-id-display').textContent = 'Offline';
+                    return;
+                }
 
-        // --- FUNCIONES DE MÚSICA DE FONDO (MP3) ---
+                app = firebase.initializeApp(firebaseConfig);
+                db = firebase.getFirestore(app);
+                auth = firebase.getAuth(app);
+                firebase.setLogLevel('Debug');
+                
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    await firebase.signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await firebase.signInAnonymously(auth);
+                }
+                
+                userId = auth.currentUser.uid;
+                isAuthReady = true;
+                document.getElementById('user-id-display').textContent = userId;
+                loadLeaderboard();
+                
+            } catch (error) {
+                console.error("Error setting up Firebase:", error);
+                isAuthReady = true; 
+            }
+        }
 
-        function iniciarMusicaDeFondo() {
-            musicaFondo.play().catch(error => {
-                console.warn("Fallo al reproducir música:", error);
+        async function enviarPuntaje() {
+            const playerNameInput = document.getElementById('player-name-input');
+            let name = playerNameInput.value.trim();
+            
+            if (name.length < 2) {
+                name = "Anónimo"; 
+            }
+
+            document.getElementById('input-score-modal').style.display = 'none';
+
+            if (!isAuthReady || !db) {
+                console.error("No se puede guardar el puntaje: Firebase no está listo.");
+                iniciarJuego(); 
+                return;
+            }
+
+            try {
+                await firebase.addDoc(firebase.collection(db, LEADERBOARD_PATH), {
+                    score: puntos,
+                    name: name,
+                    userId: userId,
+                    date: firebase.serverTimestamp ? firebase.serverTimestamp() : Date.now(),
+                    lines: lineas
+                });
+                console.log("Puntaje guardado exitosamente:", puntos);
+            } catch (error) {
+                console.error("Error al guardar el puntaje:", error);
+            }
+
+            playerNameInput.value = ''; 
+            iniciarJuego();
+        }
+        
+        function loadLeaderboard() {
+            if (!isAuthReady || !db) return;
+
+            const q = firebase.query(
+                firebase.collection(db, LEADERBOARD_PATH),
+                firebase.orderBy('score', 'desc'),
+                firebase.limit(10)
+            );
+
+            firebase.onSnapshot(q, (snapshot) => {
+                const scores = [];
+                snapshot.forEach((doc) => {
+                    scores.push(doc.data());
+                });
+
+                const list = document.getElementById('leaderboard-list');
+                list.innerHTML = ''; 
+
+                if (scores.length === 0) {
+                    list.innerHTML = '<li>No hay puntajes aún. ¡Sé el primero!</li>';
+                    return;
+                }
+
+                scores.forEach((scoreData, index) => {
+                    const li = document.createElement('li');
+                    const rank = index + 1;
+                    
+                    li.innerHTML = `
+                        <span class="rank-name">${rank}. ${scoreData.name || 'Anónimo'}</span> 
+                        <span class="score-value">${scoreData.score.toLocaleString()}</span>
+                    `;
+                    list.appendChild(li);
+                });
+            }, (error) => {
+                console.error("Error fetching leaderboard: ", error);
+                const list = document.getElementById('leaderboard-list');
+                list.innerHTML = '<li>Error al cargar la tabla de clasificación.</li>';
             });
         }
 
-        function detenerMusicaDeFondo() {
-            musicaFondo.pause();
-        }
-
-
-        // --- FUNCIONES DE SONIDO (FX) ---
+        // --- FUNCIONES DE MÚSICA Y SONIDO ---
+        function iniciarMusicaDeFondo() { musicaFondo.play().catch(error => console.warn("Fallo al reproducir música.")); }
+        function detenerMusicaDeFondo() { musicaFondo.pause(); }
 
         function generarTono(frecuencia, duracion, volumen) {
             try {
-                if (!contextoAudio) {
-                    contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
-                }
-
-                if (isPaused && contextoAudio.state === 'running') {
-                    contextoAudio.suspend();
-                } else if (!isPaused && contextoAudio.state === 'suspended') {
-                    contextoAudio.resume();
-                }
-                
-                if (contextoAudio.state !== 'running') return;
-
-
+                if (!contextoAudio) { contextoAudio = new (window.AudioContext || window.webkitAudioContext)(); }
+                if (isPaused || contextoAudio.state !== 'running') return; 
                 const oscilador = contextoAudio.createOscillator();
                 const ganancia = contextoAudio.createGain();
-
                 oscilador.connect(ganancia);
                 ganancia.connect(contextoAudio.destination);
-
                 oscilador.type = 'square'; 
                 oscilador.frequency.setValueAtTime(frecuencia, contextoAudio.currentTime);
                 ganancia.gain.setValueAtTime(volumen, contextoAudio.currentTime);
-
-                ganancia.gain.exponentialRampToValueAtTime(
-                    0.00001, 
-                    contextoAudio.currentTime + duracion
-                );
-                
+                ganancia.gain.exponentialRampToValueAtTime(0.00001, contextoAudio.currentTime + duracion);
                 oscilador.start();
                 oscilador.stop(contextoAudio.currentTime + duracion);
-
-            } catch (error) {
-                console.warn("El API de Audio para FX no está disponible:", error);
-            }
+            } catch (error) { console.warn("El API de Audio para FX no está disponible."); }
         }
+        function reproducirSonidoCaida() { generarTono(150, 0.2, 0.6); }
+        function reproducirSonidoLinea() { generarTono(440, 0.4, 0.8); }
         
-        function reproducirSonidoCaida() {
-            generarTono(150, 0.2, 0.6); 
-        }
-
-        function reproducirSonidoLinea() {
-            generarTono(440, 0.4, 0.8); 
-        }
-        
-        // --- 2. FUNCIONES DE INTERFAZ Y PUNTUACIÓN ---
+        // --- 2. FUNCIONES DE INTERFAZ, PUNTUACIÓN Y DIFICULTAD ---
 
         function actualizarHUD() {
             document.getElementById('puntos').textContent = puntos;
             document.getElementById('lineas').textContent = lineas;
-            high_score = Math.max(high_score, puntos);
-            localStorage.setItem('krispyKremeTetrisHigh', high_score);
-            document.getElementById('high-score').textContent = high_score;
+            document.getElementById('nivel').textContent = nivelActual; 
         }
 
-        function cargarHighscore() {
-            const storedScore = localStorage.getItem('krispyKremeTetrisHigh');
-            high_score = storedScore ? parseInt(storedScore) : 0;
-            document.getElementById('high-score').textContent = high_score;
+        function ajustarVelocidad() {
+            const nuevoNivel = Math.floor(lineas / 10);
+            
+            if (nuevoNivel > nivelActual && nuevoNivel < VELOCIDADES_NIVEL.length) {
+                nivelActual = nuevoNivel;
+                TIEMPO_CAIDA = VELOCIDADES_NIVEL[nivelNivel];
+                
+                if (isPlaying && !isPaused) {
+                    clearInterval(intervaloCaida);
+                    intervaloCaida = setInterval(juegoLoop, TIEMPO_CAIDA);
+                }
+                actualizarHUD();
+            } else if (nuevoNivel >= VELOCIDADES_NIVEL.length) {
+                 nivelActual = VELOCIDADES_NIVEL.length - 1;
+            }
         }
-        
+
         function generarTableroHTML() {
             tableroDiv.innerHTML = ''; 
             juegoMatriz = Array(FILAS).fill(0).map(() => Array(COLUMNAS).fill(0));
-            
             for (let r = 0; r < FILAS; r++) {
                 for (let c = 0; c < COLUMNAS; c++) {
                     const celda = document.createElement('div');
                     celda.classList.add('celda');
-                    celda.dataset.fila = r;
-                    celda.dataset.columna = c;
                     tableroDiv.appendChild(celda);
                 }
             }
-        }
-
-        function dibujarBloque(bloque, matriz) {
-            bloque.forma.forEach((fila, r) => {
-                fila.forEach((valor, c) => {
-                    if (valor === 1) {
-                        const filaAbsoluta = bloque.y + r;
-                        const columnaAbsoluta = bloque.x + c;
-                        if (filaAbsoluta >= 0 && filaAbsoluta < FILAS && columnaAbsoluta >= 0 && columnaAbsoluta < COLUMNAS) {
-                            matriz[filaAbsoluta][columnaAbsoluta] = 1;
-                        }
-                    }
-                });
-            });
-        }
-
-        function dibujarJuego() {
-            const matrizDibujo = juegoMatriz.map(fila => [...fila]); 
-            if (bloqueActual) {
-                dibujarBloque(bloqueActual, matrizDibujo);
-            }
-            const celdasHTML = document.querySelectorAll('.celda');
-            celdasHTML.forEach((celda, index) => {
-                const r = Math.floor(index / COLUMNAS);
-                const c = index % COLUMNAS;
-                if (matrizDibujo[r][c] === 1) {
-                    celda.innerHTML = DONA_EMOJI;
-                } else {
-                    celda.innerHTML = '';
-                }
-            });
-        }
-        
-        function rotarBloque(matriz) {
-            const N = matriz.length;
-            const nuevaMatriz = Array(N).fill(0).map(() => Array(N).fill(0));
-            for (let i = 0; i < N; i++) {
-                for (let j = 0; j < N; j++) {
-                    nuevaMatriz[j][N - 1 - i] = matriz[i][j];
-                }
-            }
-            return nuevaMatriz;
-        }
-
-        function verificarColision(bloque, nuevaForma) {
-            const forma = nuevaForma || bloque.forma;
-            for (let r = 0; r < forma.length; r++) {
-                for (let c = 0; c < forma[r].length; c++) {
-                    if (forma[r][c] === 1) {
-                        const nuevaFila = bloque.y + r;
-                        const nuevaColumna = bloque.x + c;
-
-                        if (nuevaColumna < 0 || nuevaColumna >= COLUMNAS) { return true; }
-                        if (nuevaFila >= FILAS) { return true; }
-                        if (nuevaFila >= 0 && juegoMatriz[nuevaFila][nuevaColumna] === 1) { return true; }
-                    }
-                }
-            }
-            return false;
-        }
-
-        function generarNuevoBloque() {
-            const indice = Math.floor(Math.random() * Formas.length);
-            const forma = Formas[indice];
-            
-            return {
-                forma: forma,
-                x: Math.floor(COLUMNAS / 2) - Math.floor(forma[0].length / 2),
-                y: -forma.length 
-            };
-        }
-
-        function asegurarBloque() {
-            bloqueActual.forma.forEach((fila, r) => {
-                fila.forEach((valor, c) => {
-                    if (valor === 1) {
-                        const filaAbsoluta = bloqueActual.y + r;
-                        const columnaAbsoluta = bloqueActual.x + c;
-                        if (filaAbsoluta >= 0) {
-                            juegoMatriz[filaAbsoluta][columnaAbsoluta] = 1;
-                        }
-                    }
-                });
-            });
-        }
-
-        function limpiarLineas() {
-            let lineasCompletadas = 0;
-            for (let r = FILAS - 1; r >= 0; r--) {
-                if (juegoMatriz[r].every(celda => celda === 1)) {
-                    for (let k = r; k > 0; k--) {
-                        juegoMatriz[k] = [...juegoMatriz[k - 1]];
-                    }
-                    juegoMatriz[0] = Array(COLUMNAS).fill(0); 
-                    lineasCompletadas++;
-                    r++; 
-                }
-            }
-            
-            if (lineasCompletadas > 0) {
-                puntos += lineasCompletadas * lineasCompletadas * 100; 
-                lineas += lineasCompletadas;
-                actualizarHUD();
-                reproducirSonidoLinea(); 
-            }
-        }
-
-        function mover(dx, dy) {
-            if (!bloqueActual || !isPlaying || isPaused) return;
-            
-            const nuevoBloque = { ...bloqueActual, x: bloqueActual.x + dx, y: bloqueActual.y + dy };
-            
-            if (!verificarColision(nuevoBloque)) {
-                bloqueActual = nuevoBloque;
-            } else if (dy > 0) {
-                asegurarBloque();
-                reproducirSonidoCaida(); 
-                limpiarLineas();
-                
-                if (bloqueActual.y < 0) {
-                    gameOver();
-                    return;
-                }
-                
-                bloqueActual = proximoBloque;
-                proximoBloque = generarNuevoBloque();
-            }
-            dibujarJuego();
-        }
-
-        function rotar() {
-            if (!bloqueActual || !isPlaying || isPaused) return;
-            
-            const nuevaForma = rotarBloque(bloqueActual.forma);
-            const bloqueConRotacion = { ...bloqueActual, forma: nuevaForma };
-
-            if (!verificarColision(bloqueConRotacion)) {
-                bloqueActual.forma = nuevaForma;
-            }
-            dibujarJuego();
-        }
-
-        function caidaRapida() {
-            if (!bloqueActual || !isPlaying || isPaused) return;
-
-            let pasos = 0;
-            while (!verificarColision({ ...bloqueActual, y: bloqueActual.y + pasos + 1 })) {
-                pasos++;
-            }
-            bloqueActual.y += pasos;
-            mover(0, 1); 
-        }
-
-        function juegoLoop() {
-            if (!isPaused) {
-                mover(0, 1); 
-            }
-        }
-        
-        // --- 3. FUNCIONES DE INICIO/FIN/PAUSA ---
-
-        function iniciarJuego() {
-            iniciarMusicaDeFondo();
-            
-            if (contextoAudio && contextoAudio.state === 'suspended') {
-                contextoAudio.resume();
-            } else if (!contextoAudio) {
-                 contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            document.getElementById('menu-inicio').style.display = 'none';
-            generarTableroHTML();
-            cargarHighscore();
-            
-            puntos = 0;
-            lineas = 0;
-            actualizarHUD();
-            
-            bloqueActual = generarNuevoBloque();
-            proximoBloque = generarNuevoBloque(); 
-            
-            isPlaying = true;
-            isPaused = false;
-            btnPausa.textContent = '⏸️ Pausa';
-            mensajePausa.style.display = 'none';
-            
-            intervaloCaida = setInterval(juegoLoop, TIEMPO_CAIDA);
-        }
-
-        function gameOver() {
-            clearInterval(intervaloCaida);
-            isPlaying = false;
-            
-            detenerMusicaDeFondo();
-            if (contextoAudio && contextoAudio.state === 'running') {
-                contextoAudio.suspend();
-            }
-            
-            alert(`¡Fin del Juego!\nPuntos: ${puntos}\nLíneas: ${lineas}\n🏆 High Score: ${high_score}`);
-            document.getElementById('menu-inicio').style.display = 'flex';
-        }
-
-        function togglePausa() {
-            if (!isPlaying) return;
-
-            isPaused = !isPaused; 
-            
-            if (isPaused) {
-                clearInterval(intervaloCaida);
-                detenerMusicaDeFondo(); 
-                if (contextoAudio && contextoAudio.state === 'running') {
-                    contextoAudio.suspend();
-                }
-                btnPausa.textContent = '▶️ Reanudar';
-                mensajePausa.style.display = 'block';
-            } else {
-                intervaloCaida = setInterval(juegoLoop, TIEMPO_CAIDA);
-                iniciarMusicaDeFondo(); 
-                if (contextoAudio && contextoAudio.state === 'suspended') {
-                    contextoAudio.resume();
-                }
-                btnPausa.textContent = '⏸️ Pausa';
-                mensajePausa.style.display = 'none';
-            }
-        }
-    </script>
-</body>
-</html>
+    
